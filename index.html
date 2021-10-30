@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <meta charset="utf-8">
+      <meta name="format-detection" content="telephone=no">
+      <meta name="msapplication-tap-highlight" content="no">
+      <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.css">
+      <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.min.js"></script>
+      <style>
+         .input_section_wrapper {
+         display: flex;
+         flex-direction: column;
+         justify-content: center;
+         width: 50%;
+         align-items: center;
+         }
+         body {
+         margin: 0;
+         padding: 0;
+         height: 100%;
+         width: 100%;
+         }
+         .inputs_wrapper {
+         width: 100%;
+         display: flex;
+         flex-direction: column;
+         justify-content: space-between;
+         align-items: center;
+         height: 250px;
+         position: relative;
+         }
+         .suggestions_wrapper {
+         width: 100%;
+         position: absolute;
+         height: 200px;
+         background: #f6f6f6;
+         bottom: -200px;
+         z-index: 2;
+         }
+         .maps_section_wrapper {
+         width: 100%;
+         display: flex;
+         justify-content: center;
+         align-items: center;
+         }
+         div#map {
+         height: 500px;
+         width: 70%;
+         }
+         .content_wrapper {
+         display: flex;
+         justify-content: space-around;
+         align-items: center;
+         height: 100vh;
+         }
+         .result_wrapper {
+         width: 80%;
+         }
+         input {
+         height: 40px;
+         background: #f6f6f6;
+         border: none;
+         margin: 0;
+         width: 100%;
+         padding-left: 40px;
+         outline: none;
+         }
+         .input_wrapper {
+         position: relative;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         width: 80%;
+         }
+         .destination_input_wrapper span {
+         font-size: 20px;
+         }
+         .input_wrapper {
+         position: relative;
+         display: flex;
+         align-items: center;
+         }
+         .input_wrapper span {
+         position: absolute;
+         left: 15px;
+         }
+         button#request_now {
+         background: black;
+         color: white;
+         }
+         .button_wrapper button {
+         height: 40px;
+         width: 100%;
+         cursor: pointer;
+         font-weight: bold;
+         }
+         .button_wrapper {
+         width: 80%;
+         }
+         button#schedule_later {
+         border: none;
+         }
+         .suggestions_wrapper div {
+         height: 40px;
+         display: flex;
+         justify-content: flex-start;
+         align-items: center;
+         padding-left: 25px;
+         }
+      </style>
+      <title>Hello World</title>
+   </head>
+   <body>
+      <div class="content_wrapper">
+         <div class="input_section_wrapper">
+            <div class="inputs_wrapper">
+               <div class="section_title">
+                  Signalist Route Estimator
+               </div>
+               <div class="input_wrapper origin_input_wrapper">
+                  <span>	&#9711;</span>
+                  <input type="text" id="origin_input" placeholder="Enter Origin">
+                  <div class="suggestions_wrapper" hidden></div>
+               </div>
+               <div class="input_wrapper destination_input_wrapper">
+                  <span>	&#9723;</span>
+                  <input type="text" id="destination_input" placeholder="Enter Destination">
+                  <div class="suggestions_wrapper" hidden></div>
+               </div>
+               <div class="button_wrapper">
+                  <button id="request_now">Get Esimation</button>
+               </div>
+            </div>
+            <div class="result_wrapper" hidden>
+               <hr>
+               <div class="options_wrapper">
+               </div>
+            </div>
+         </div>
+         <div class="maps_section_wrapper">
+            <div id="map" class="container"></div>
+         </div>
+      </div>
+      <script>
+         (()=>{
+         this.app = {
+         input_timeout: undefined,
+         origin: undefined,
+         destination: undefined,
+         init: function(){
+         var self = this
+         document.addEventListener("click", self.onClick.bind(self), false);    
+         document.addEventListener("input", self.onInput.bind(self), false);    
+         self.loadMap()
+         },
+         loadMap: function(){
+         var self = this;
+         self.map = new maptalks.Map('map', {
+             center: [-0.113049,51.498568],
+             zoom: 14,
+             baseLayer: new maptalks.TileLayer('base', {
+                 urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                 subdomains: ['a','b','c','d'],
+             })
+         });        
+         },
+         addMarker: function(position){
+         var self = this
+         point = new maptalks.Marker(
+             [position.lat, position.long],
+             {
+                 visible : true,
+                 editable : true,
+                 cursor : 'pointer',
+                 shadowBlur : 0,
+                 shadowColor : 'black',
+                 draggable : false,
+                 dragShadow : false, // display a shadow during dragging
+                 drawOnAxis : null,  // force dragging stick on a axis, can be: x, y
+                 symbol : {
+                 'textFaceName' : 'sans-serif',
+                 'textName' : 'A',
+                 'textFill' : '#34495e',
+                 'textHorizontalAlignment' : 'right',
+                 'textSize' : 40
+                 }
+             }
+         );        
+         new maptalks.VectorLayer('vector', point).addTo(self.map);
+         },
+         onFocus: function(event){
+         var self = this
+         if ( event.target.id == 'origin_input'){
+             if (self.origin_suggestions != undefined){
+                 var suggestions_wrapper = document.querySelector('.origin_input_wrapper .suggestions_wrapper')
+                 suggestions_wrapper.hidden = false    
+             }
+         }else if ( event.target.id == 'destination_input'){
+             if (self.destination_suggestions != undefined){
+                 var suggestions_wrapper = document.querySelector('.destination_input_wrapper .suggestions_wrapper')
+                 suggestions_wrapper.hidden = false    
+             }
+         }
+         },
+         onBlur: function(event){
+         var self = this
+         if (event.target.id == 'origin_input'){
+             var suggestions_wrapper = document.querySelector('.origin_input_wrapper .suggestions_wrapper')
+             suggestions_wrapper.hidden = true
+         }else if (event.target.id == 'destination_input'){
+             var suggestions_wrapper = document.querySelector('.destination_input_wrapper .suggestions_wrapper')
+             suggestions_wrapper.hidden = true
+         }
+         },
+         onInput: function(event){
+         var self = this
+         if (event.target.id == 'origin_input'){
+             var query = event.target.value
+             var lang = window.navigator.language.split('-')[0]
+             var suggestions_wrapper = document.querySelector('.origin_input_wrapper .suggestions_wrapper')
+             self.xhr_autocomplete(query, lang)
+             .then(suggestions=>{
+                 self.origin_suggestions = suggestions
+                 if (self.origin_suggestions.length > 0){
+                     suggestions_wrapper.innerHTML = ''
+                     for (const [index, suggestion] of self.origin_suggestions.entries()){
+                         const div = document.createElement('div')
+                         div.classList.add('origin_suggestion')
+                         div.id = index+1
+                         div.innerHTML = suggestion.name
+                         suggestions_wrapper.insertAdjacentElement('afterbegin', div)
+                     }
+                     suggestions_wrapper.hidden = false    
+                 } else {
+                     self.origin_suggestions = undefined
+                     suggestions_wrapper.innerHTML = ''
+                     suggestions_wrapper.hidden = true        
+                 }
+             });
+         } else if (event.target.id == 'destination_input'){
+             var query = event.target.value
+             var lang = window.navigator.language.split('-')[0]
+             var suggestions_wrapper = document.querySelector('.destination_input_wrapper .suggestions_wrapper')
+             self.xhr_autocomplete(query, lang)
+             .then(suggestions=>{
+                 self.destination_suggestions = suggestions
+                 if (self.destination_suggestions.length > 0){
+                     suggestions_wrapper.innerHTML = ''
+                     for (const [index, suggestion] of self.destination_suggestions.entries()){
+                         const div = document.createElement('div')
+                         div.classList.add('destination_suggestion')
+                         div.id = index+1
+                         div.innerHTML = suggestion.name
+                         suggestions_wrapper.insertAdjacentElement('afterbegin', div)
+                     }
+                     suggestions_wrapper.hidden = false    
+                 } else {
+                     self.destination_suggestions = undefined
+                     suggestions_wrapper.innerHTML = ''
+                     suggestions_wrapper.hidden = true        
+                 }
+             });
+         }
+         },
+         onClick: function(event){
+         var self = this
+         if (event.target.matches('.origin_suggestion')){
+             self.geocoding(event.target.innerHTML)
+             .then(
+                 data => {
+                     self.origin = data; self.map.setCenter([self.origin.long, self.origin.lat ])
+                 })
+             var origin_input = document.querySelector('#origin_input')
+             origin_input.value = event.target.innerHTML
+             var suggestions_wrapper = document.querySelector('.origin_input_wrapper .suggestions_wrapper')
+             suggestions_wrapper.innerHTML = ''
+             suggestions_wrapper.hidden = true
+         } else if (event.target.matches('.destination_suggestion')){
+             self.geocoding(event.target.innerHTML)
+             .then(
+                 data => {
+                     self.destination = data; self.map.setCenter([self.destination.long, self.destination.lat ])
+                 })
+             var destination_input = document.querySelector('#destination_input')
+             destination_input.value = event.target.innerHTML
+             var suggestions_wrapper = document.querySelector('.destination_input_wrapper .suggestions_wrapper')
+             suggestions_wrapper.innerHTML = ''
+             suggestions_wrapper.hidden = true
+         } else if ( event.target.id == 'request_now'){
+             var origin_input = document.querySelector('#origin_input')
+             var destination_input = document.querySelector('#destination_input')
+             if ( origin_input.value != '' && destination_input.value != ''){
+                 self.directions(self.origin, self.destination)
+                 .then(data=>{
+                     if (data.length > 0){
+                         self.center_point = []
+                         self.extent = new maptalks.Extent(data[0].bbox.reverse())
+                         average_lat = (data[0].bbox[0] + data[0].bbox[2]) / 2
+                         self.center_point.push(average_lat) 
+                         average_long = (data[0].bbox[1] + data[0].bbox[3]) / 2
+                         self.center_point.push(average_long)
+                         if (self.route_layer != undefined){
+                             self.route_layer.remove()
+                         }
+                         self.reversed_directions = []
+                         data[0].route.forEach(function(point){
+                             self.reversed_directions.push(point.reverse())
+                         })
+                         self.directions_line = new maptalks.LineString(self.reversed_directions, {
+                             arrowStyle : null, // arrow-style : now we only have classic
+                             arrowPlacement : 'vertex-last', // arrow's placement: vertex-first, vertex-last, vertex-firstlast, point
+                             visible : true,
+                             editable : true,
+                             cursor : null,
+                             shadowBlur : 0,
+                             shadowColor : 'black',
+                             draggable : false,
+                             dragShadow : false, // display a shadow during dragging
+                             drawOnAxis : null,  // force dragging stick on a axis, can be: x, y
+                             // smoothness : 0.5,
+                             symbol: {
+                             'lineColor' : 'black',
+                             'lineWidth' : 3
+                             }
+                         });
+                         self.map.setCenter(self.center_point) 
+                         self.map.fitExtent(self.extent)
+                         self.map.setZoom(self.map.getFitZoom(self.extent))
+                         self.route_layer = new maptalks.VectorLayer('vector', self.directions_line).addTo(self.map);
+                         var destinations = []
+                         destinations.push(self.destination)
+                         var lang = window.navigator.language.split('-')[0]
+                         self.matrix(lang, self.origin, destinations)
+                         .then(data =>{
+                                 var options_wrapper = document.querySelector('.options_wrapper')
+                                 options_wrapper.innerHTML = 'Duration: '+ (data.total_duration / 60).toFixed(2) +' Minutes =========== Distance: '+ data.total_distance / 1000 + ' KM'
+                                 var result_wrapper = document.querySelector('.result_wrapper')
+                                 result_wrapper.hidden = false
+                         })
+         
+                     }
+                 })
+             } else {
+                 alert('Origin & destination are required!')
+             }
+         }
+         },
+         xhr_autocomplete: function(query, lang){
+         if (query != ''){
+             if (self.xhr != undefined){
+                 self.xhr.abort()
+             }
+             return new Promise((resolve, reject)=>{
+                 self.xhr = new XMLHttpRequest(),
+                 method = 'GET',
+                 url = 'https://signalistapi.azurewebsites.net/api/autocomplete?query='+query+'&lang='+ lang;
+                 self.xhr.onload = function(){
+                     if (self.xhr.readyState === self.xhr.DONE) {
+                         if (self.xhr.status === 200) {
+                             resolve(JSON.parse(self.xhr.responseText));
+                         }
+                     }
+                 }
+                 self.xhr.open(method, url, true);
+                 self.xhr.send();
+             })        
+         } else {
+             if (self.xhr != undefined){
+                 self.xhr.abort()
+             }
+             return new Promise((resolve, reject)=>{
+                 resolve([])
+             })
+         }
+         },
+         geocoding: function(query){
+         return new Promise((resolve, reject)=>{
+             fetch('https://signalistapi.azurewebsites.net/api/geocoding?query='+query)
+             .then(response => response.json())
+             .then(data => { resolve(data)})                     
+             .catch(function(error) {         
+         
+             });    
+         })
+         },
+         directions: function(origin, destination){
+         return new Promise((resolve, reject)=>{
+             fetch('https://signalistapi.azurewebsites.net/api/directions?origin='+origin.lat+','+origin.long+'&destination='+destination.lat+','+destination.long)
+             .then(response => response.json())
+             .then(data => { resolve(data)})                     
+             .catch(function(error) {         
+         
+             });    
+         })
+         },
+         matrix: function(lang, origin, destinations){
+         var destinations_url = ''
+         destinations.forEach((destination, i) => {
+             if (i+1 == destinations.length){
+                 destinations_url += destination.lat+','+destination.long
+             } else {
+                 destinations_url += destination.lat+','+destination.long+'|'
+             }
+         });
+         return new Promise((resolve, reject)=>{
+             fetch('https://signalistapi.azurewebsites.net/api/matrix?lang='+lang+'&origin='+origin.lat+','+origin.long+'&destinations='+destinations_url)
+             .then(response => response.json())
+             .then(data => { resolve(data)})                     
+             .catch(function(error) {         
+         
+             });    
+         })
+         },
+         postDate: async function(url = '', data = {}) {
+         // Default options are marked with *
+         const response = await fetch(url, {
+             method: 'POST', // *GET, POST, PUT, DELETE, etc.
+             mode: 'cors', // no-cors, *cors, same-origin
+             cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
+             credentials: 'same-origin', // include, *same-origin, omit
+             headers: {
+                 'Content-Type': 'application/json'
+                 // 'Content-Type': 'application/x-www-form-urlencoded',
+             },
+             redirect: 'follow', // manual, *follow, error
+             referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+             body: JSON.stringify(data) // body data type must match "Content-Type" header
+         });
+         return response.json(); // parses JSON response into native JavaScript objects
+         },
+         
+         }
+         this.app.init()
+         })()
+         
+      </script>
+   </body>
+</html>
