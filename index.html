@@ -354,7 +354,7 @@
              return new Promise((resolve, reject)=>{
                  self.xhr = new XMLHttpRequest(),
                  method = 'GET',
-                 url = 'https://signalistapi.azurewebsites.net/api/autocomplete?query='+query+'&lang='+ lang;
+                 url = 'https://signalistapi.azurewebsites.net/api/autocomplete?query='+query+'&lang='+ lang + '&code=VNekSzHLCpNdRDMPckthyBF9e6TB6vZjwEACQXuXVmEG/u/8Ihf3lg==' ;
                  self.xhr.onload = function(){
                      if (self.xhr.readyState === self.xhr.DONE) {
                          if (self.xhr.status === 200) {
@@ -376,7 +376,7 @@
          },
          geocoding: function(query){
          return new Promise((resolve, reject)=>{
-             fetch('https://signalistapi.azurewebsites.net/api/geocoding?query='+query)
+             fetch('https://signalistapi.azurewebsites.net/api/geocoding?query='+query +'&code=VNekSzHLCpNdRDMPckthyBF9e6TB6vZjwEACQXuXVmEG/u/8Ihf3lg==') 
              .then(response => response.json())
              .then(data => { resolve(data)})                     
              .catch(function(error) {         
@@ -386,7 +386,7 @@
          },
          directions: function(origin, destination){
          return new Promise((resolve, reject)=>{
-             fetch('https://signalistapi.azurewebsites.net/api/directions?origin='+origin.lat+','+origin.long+'&destination='+destination.lat+','+destination.long)
+             fetch('https://signalistapi.azurewebsites.net/api/directions?origin='+origin.lat+','+origin.long+'&destination='+destination.lat+','+destination.long+'&code=VNekSzHLCpNdRDMPckthyBF9e6TB6vZjwEACQXuXVmEG/u/8Ihf3lg==') 
              .then(response => response.json())
              .then(data => { resolve(data)})                     
              .catch(function(error) {         
@@ -404,7 +404,7 @@
              }
          });
          return new Promise((resolve, reject)=>{
-             fetch('https://signalistapi.azurewebsites.net/api/matrix?lang='+lang+'&origin='+origin.lat+','+origin.long+'&destinations='+destinations_url)
+             fetch('https://signalistapi.azurewebsites.net/api/matrix?lang='+lang+'&origin='+origin.lat+','+origin.long+'&destinations='+destinations_url+'&code=VNekSzHLCpNdRDMPckthyBF9e6TB6vZjwEACQXuXVmEG/u/8Ihf3lg==' )
              .then(response => response.json())
              .then(data => { resolve(data)})                     
              .catch(function(error) {         
